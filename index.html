@@ -16,12 +16,12 @@
     /* カメラ映像を全画面に */
     #camera-stream {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      object-fit: cover; z-index: 1;
+      object-fit: contain; z-index: 1;
     }
     /* フレーム画像を重ねる */
     #frame-overlay {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      object-fit: cover; z-index: 2; pointer-events: none;
+      object-fit: contain; z-index: 2; pointer-events: none;
     }
     
     /* UI（ボタン）の設定 */
