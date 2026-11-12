@@ -93,9 +93,9 @@
     <canvas id="sakura-canvas"></canvas> <!-- ★桜キャンバス -->
     <div class="ui-layer">
       <button class="btn" id="sakura-btn" title="桜エフェクト">🌸</button>
-      <button class="btn" id="prev-btn" style="display:none;">◀</button> <!-- フレーム1枚なので非表示 -->
+      <button class="btn" id="prev-btn" >◀</button> <!-- フレーム1枚なので非表示 -->
       <button class="btn" id="capture-btn">📸</button>
-      <button class="btn" id="next-btn" style="display:none;">▶</button> <!-- フレーム1枚なので非表示 -->
+      <button class="btn" id="next-btn" >▶</button> <!-- フレーム1枚なので非表示 -->
     </div>
   </div>
 
@@ -110,14 +110,22 @@
     const sCtx = sakuraCanvas.getContext('2d');
 
     // ★ 本番のフレーム画像 ★
-    let frames = ['syousyo.png'];
+    let frames = ['syousyo.png', 'frame2.png', 'frame3.png'];
     let currentFrameIndex = 0;
 
     function updateFrame() {
       overlay.src = frames[currentFrameIndex];
     }
     updateFrame();
-
+    document.getElementById('prev-btn').onclick = () => {
+      currentFrameIndex = (currentFrameIndex - 1 + frames.length) % frames.length;
+      updateFrame();
+    };
+    document.getElementById('next-btn').onclick = () => {
+      currentFrameIndex = (currentFrameIndex + 1) % frames.length;
+      updateFrame();
+    };
+    
     // ===============
     // 🌸 桜エフェクトの処理 🌸
     // ===============
