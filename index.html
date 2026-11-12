@@ -13,15 +13,20 @@
       position: relative; width: 100%; height: 100%;
       display: flex; justify-content: center; align-items: center;
     }
-    /* カメラ映像を全画面に */
+    /* カメラ映像（端が切れないようにcontainに修正済み） */
     #camera-stream {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       object-fit: contain; z-index: 1;
     }
-    /* フレーム画像を重ねる */
+    /* フレーム画像（端が切れないようにcontainに修正済み） */
     #frame-overlay {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       object-fit: contain; z-index: 2; pointer-events: none;
+    }
+    /* ★新規：桜を降らせるキャンバス */
+    #sakura-canvas {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 3; pointer-events: none;
     }
     
     /* UI（ボタン）の設定 */
@@ -41,8 +46,10 @@
     #capture-btn { width: 80px; height: 80px; font-size: 32px; bottom: 20px; right: 20%; }
     #prev-btn { left: 20px; bottom: 30px; }
     #next-btn { right: 20px; bottom: 30px; }
+    /* ★新規：桜のオンオフボタン */
+    #sakura-btn { top: 20px; right: 20px; font-size: 28px; width: 50px; height: 50px; transition: 0.3s; }
 
-    /* スタート画面（カメラ許可をもらうため必須） */
+    /* スタート画面 */
     #start-screen {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0, 0, 0, 0.9); color: white; z-index: 2000;
@@ -81,13 +88,14 @@
   </div>
 
   <div id="app-container">
-    <!-- playsinlineとautoplayはスマホブラウザで必須 -->
     <video id="camera-stream" autoplay playsinline muted></video>
-    <img id="frame-overlay" crossorigin="anonymous" />
+    <img id="frame-overlay" />
+    <canvas id="sakura-canvas"></canvas> <!-- ★桜キャンバス -->
     <div class="ui-layer">
-      <button class="btn" id="prev-btn">◀</button>
+      <button class="btn" id="sakura-btn" title="桜エフェクト">🌸</button>
+      <button class="btn" id="prev-btn" style="display:none;">◀</button> <!-- フレーム1枚なので非表示 -->
       <button class="btn" id="capture-btn">📸</button>
-      <button class="btn" id="next-btn">▶</button>
+      <button class="btn" id="next-btn" style="display:none;">▶</button> <!-- フレーム1枚なので非表示 -->
     </div>
   </div>
 
@@ -97,12 +105,12 @@
     const captureBtn = document.getElementById('capture-btn');
     const startBtn = document.getElementById('start-btn');
     const startScreen = document.getElementById('start-screen');
+    const sakuraBtn = document.getElementById('sakura-btn');
+    const sakuraCanvas = document.getElementById('sakura-canvas');
+    const sCtx = sakuraCanvas.getContext('2d');
 
-    // ★フレーム画像の設定★
-    let frames = [
-      // ★後で本番用の「syousyo.png」を追加するときは、下の // を消して有効にします
-     'syousyo.png'
-    ];
+    // ★ 本番のフレーム画像 ★
+    let frames = ['syousyo.png'];
     let currentFrameIndex = 0;
 
     function updateFrame() {
@@ -110,31 +118,89 @@
     }
     updateFrame();
 
-    // 左右ボタンでのフレーム切り替え
-    document.getElementById('prev-btn').onclick = () => {
-      currentFrameIndex = (currentFrameIndex - 1 + frames.length) % frames.length;
-      updateFrame();
-    };
-    document.getElementById('next-btn').onclick = () => {
-      currentFrameIndex = (currentFrameIndex + 1) % frames.length;
-      updateFrame();
+    // ===============
+    // 🌸 桜エフェクトの処理 🌸
+    // ===============
+    let sakuraActive = false;
+    let animationId;
+    let petals = [];
+
+    // キャンバスのサイズを画面に合わせる
+    function resizeCanvas() {
+      sakuraCanvas.width = window.innerWidth;
+      sakuraCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // 桜の花びらを作る設計図
+    class Petal {
+      constructor() { this.reset(); this.y = Math.random() * sakuraCanvas.height; }
+      reset() {
+        this.x = Math.random() * sakuraCanvas.width;
+        this.y = -20; // 画面の上からスタート
+        this.size = Math.random() * 12 + 8; // 花びらの大きさ
+        this.speedY = Math.random() * 1.5 + 0.5; // 落ちるスピード
+        this.speedX = Math.random() * 2 - 1; // 左右の揺れ
+        this.angle = Math.random() * 360; // 回転角度
+        this.spin = Math.random() * 2 - 1; // 回転スピード
+      }
+      update() {
+        this.y += this.speedY;
+        this.x += this.speedX;
+        this.angle += this.spin;
+        // 画面の下に落ちたら上に戻す
+        if (this.y > sakuraCanvas.height) this.reset();
+      }
+      draw() {
+        sCtx.save();
+        sCtx.translate(this.x, this.y);
+        sCtx.rotate(this.angle * Math.PI / 180);
+        sCtx.fillStyle = 'rgba(255, 183, 197, 0.85)'; // 桜色
+        sCtx.beginPath();
+        // 花びらの形を描く
+        sCtx.moveTo(0, this.size / 2);
+        sCtx.quadraticCurveTo(this.size, this.size / 2, this.size / 2, -this.size / 2);
+        sCtx.quadraticCurveTo(0, -this.size, -this.size / 2, -this.size / 2);
+        sCtx.quadraticCurveTo(-this.size, this.size / 2, 0, this.size / 2);
+        sCtx.fill();
+        sCtx.restore();
+      }
+    }
+
+    // 花びらを30枚用意する
+    for (let i = 0; i < 30; i++) petals.push(new Petal());
+
+    // 桜を動かすループ
+    function drawSakura() {
+      sCtx.clearRect(0, 0, sakuraCanvas.width, sakuraCanvas.height);
+      if (sakuraActive) {
+        petals.forEach(p => { p.update(); p.draw(); });
+        animationId = requestAnimationFrame(drawSakura);
+      }
+    }
+
+    // 桜ボタンを押したときのオン・オフ切り替え
+    sakuraBtn.onclick = () => {
+      sakuraActive = !sakuraActive;
+      if (sakuraActive) {
+        sakuraBtn.style.background = '#ffb7c5'; // ボタンをピンクに
+        drawSakura();
+      } else {
+        sakuraBtn.style.background = 'rgba(255, 255, 255, 0.9)'; // 元の色に
+        cancelAnimationFrame(animationId);
+        sCtx.clearRect(0, 0, sakuraCanvas.width, sakuraCanvas.height);
+      }
     };
 
-    // カメラ起動処理
+
+    // ===============
+    // 📷 カメラと撮影の処理 📷
+    // ===============
     startBtn.onclick = async () => {
+      try { if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch (e) {}
+      try { if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape'); } catch (e) {}
       try {
-        if (document.documentElement.requestFullscreen) {
-          await document.documentElement.requestFullscreen();
-        }
-      } catch (e) {}
-      try {
-        if (screen.orientation && screen.orientation.lock) {
-          await screen.orientation.lock('landscape');
-        }
-      } catch (e) {}
-
-      try {
-        // 背面カメラを要求
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
           audio: false
@@ -142,7 +208,7 @@
         video.srcObject = stream;
         startScreen.style.display = 'none';
       } catch (err) {
-        alert('カメラの起動に失敗しました。\nブラウザのカメラ権限を「許可」してください。\nエラー: ' + err.name);
+        alert('カメラの起動に失敗しました。\nエラー: ' + err.name);
       }
     };
 
@@ -153,9 +219,16 @@
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
       
-      // 映像とフレームを合成
+      // 1. カメラ映像を描画
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // 2. 卒業証書フレームを描画
       ctx.drawImage(overlay, 0, 0, canvas.width, canvas.height);
+      
+      // 3. もし桜がONなら、桜も写真に焼き付ける！
+      if (sakuraActive) {
+        ctx.drawImage(sakuraCanvas, 0, 0, canvas.width, canvas.height);
+      }
       
       try {
         const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
